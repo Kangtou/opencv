@@ -62,7 +62,7 @@ namespace cv
 //! @addtogroup viz
 //! @{
 
-        /** @brief The Viz3d class represents a 3D visualizer window. This class is implicitly shared. :
+        /** @brief The Viz3d class represents a 3D visualizer window. This class is implicitly shared.
         */
         class CV_EXPORTS Viz3d
         {
@@ -134,7 +134,7 @@ namespace cv
 
             /** @brief Sets the intrinsic parameters of the viewer using Camera.
 
-            @param camera Camera object wrapping intrinsinc parameters.
+            @param camera Camera object wrapping intrinsic parameters.
              */
             void setCamera(const Camera &camera);
 
@@ -144,7 +144,7 @@ namespace cv
 
             /** @brief Returns the current pose of the viewer.
             */
-            Affine3d getViewerPose();
+            Affine3d getViewerPose() const;
 
             /** @brief Sets pose of the viewer.
 
@@ -186,6 +186,7 @@ namespace cv
             void setWindowSize(const Size &window_size);
 
             /** @brief Returns the name of the window which has been set in the constructor.
+             *  `Viz - ` is prepended to the name if necessary.
              */
             String getWindowName() const;
 
@@ -245,8 +246,9 @@ namespace cv
             @param ambientColor The ambient color of the light
             @param specularColor The specular color of the light
              */
-            void addLight(Vec3d position, Vec3d focalPoint = Vec3d(0, 0, 0), Color color = Color::white(),
-                          Color diffuseColor = Color::white(), Color ambientColor = Color::black(), Color specularColor = Color::white());
+            void addLight(const Vec3d &position, const Vec3d &focalPoint = Vec3d(0, 0, 0), const Color &color = Color::white(),
+                          const Color &diffuseColor = Color::white(), const Color &ambientColor = Color::black(),
+                          const Color &specularColor = Color::white());
 
             /** @brief Returns whether the event loop has been stopped.
             */
@@ -274,22 +276,22 @@ namespace cv
             @param property Property that will be modified.
             @param value The new value of the property.
 
-            **Rendering property** can be one of the following:
+            Rendering property can be one of the following:
             -   **POINT_SIZE**
             -   **OPACITY**
             -   **LINE_WIDTH**
             -   **FONT_SIZE**
-            -
-            **REPRESENTATION**: Expected values are
+
+            REPRESENTATION: Expected values are
             -   **REPRESENTATION_POINTS**
             -   **REPRESENTATION_WIREFRAME**
             -   **REPRESENTATION_SURFACE**
-            -
-            **IMMEDIATE_RENDERING**:
+
+            IMMEDIATE_RENDERING:
             -   Turn on immediate rendering by setting the value to 1.
             -   Turn off immediate rendering by setting the value to 0.
-            -
-            **SHADING**: Expected values are
+
+            SHADING: Expected values are
             -   **SHADING_FLAT**
             -   **SHADING_GOURAUD**
             -   **SHADING_PHONG**
@@ -300,22 +302,22 @@ namespace cv
             @param id Id of the widget.
             @param property Property.
 
-            **Rendering property** can be one of the following:
+            Rendering property can be one of the following:
             -   **POINT_SIZE**
             -   **OPACITY**
             -   **LINE_WIDTH**
             -   **FONT_SIZE**
-            -
-            **REPRESENTATION**: Expected values are
+
+            REPRESENTATION: Expected values are
             -   **REPRESENTATION_POINTS**
             -   **REPRESENTATION_WIREFRAME**
             -   **REPRESENTATION_SURFACE**
-            -
-            **IMMEDIATE_RENDERING**:
+
+            IMMEDIATE_RENDERING:
             -   Turn on immediate rendering by setting the value to 1.
             -   Turn off immediate rendering by setting the value to 0.
-            -
-            **SHADING**: Expected values are
+
+            SHADING: Expected values are
             -   **SHADING_FLAT**
             -   **SHADING_GOURAUD**
             -   **SHADING_PHONG**

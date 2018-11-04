@@ -42,11 +42,7 @@
 namespace cv
 {
 
-// inner product
-static float innerProduct(Point2f &v1, Point2f &v2)
-{
-    return v1.x * v2.y - v1.y * v2.x;
-}
+const float EPS = 1.0e-4f;
 
 static void findCircle3pts(Point2f *pts, Point2f &center, float &radius)
 {
@@ -54,72 +50,21 @@ static void findCircle3pts(Point2f *pts, Point2f &center, float &radius)
     Point2f v1 = pts[1] - pts[0];
     Point2f v2 = pts[2] - pts[0];
 
-    if (innerProduct(v1, v2) == 0.0f)
-    {
-        // v1, v2 colineation, can not determine a unique circle
-        // find the longtest distance as diameter line
-        float d1 = (float)norm(pts[0] - pts[1]);
-        float d2 = (float)norm(pts[0] - pts[2]);
-        float d3 = (float)norm(pts[1] - pts[2]);
-        if (d1 >= d2 && d1 >= d3)
-        {
-            center = (pts[0] + pts[1]) / 2.0f;
-            radius = (d1 / 2.0f);
-        }
-        else if (d2 >= d1 && d2 >= d3)
-        {
-            center = (pts[0] + pts[2]) / 2.0f;
-            radius = (d2 / 2.0f);
-        }
-        else if (d3 >= d1 && d3 >= d2)
-        {
-            center = (pts[1] + pts[2]) / 2.0f;
-            radius = (d3 / 2.0f);
-        }
-    }
-    else
-    {
-        // center is intersection of midperpendicular lines of the two edges v1, v2
-        // a1*x + b1*y = c1 where a1 = v1.x, b1 = v1.y
-        // a2*x + b2*y = c2 where a2 = v2.x, b2 = v2.y
-        Point2f midPoint1 = (pts[0] + pts[1]) / 2.0f;
-        float c1 = midPoint1.x * v1.x + midPoint1.y * v1.y;
-        Point2f midPoint2 = (pts[0] + pts[2]) / 2.0f;
-        float c2 = midPoint2.x * v2.x + midPoint2.y * v2.y;
-        float det = v1.x * v2.y - v1.y * v2.x;
-        float cx = (c1 * v2.y - c2 * v1.y) / det;
-        float cy = (v1.x * c2 - v2.x * c1) / det;
-        center.x = (float)cx;
-        center.y = (float)cy;
-        cx -= pts[0].x;
-        cy -= pts[0].y;
-        radius = (float)(std::sqrt(cx *cx + cy * cy));
-    }
-}
-
-const float EPS = 1.0e-4f;
-
-static void findEnclosingCircle3pts_orLess_32f(Point2f *pts, int count, Point2f &center, float &radius)
-{
-    switch (count)
-    {
-    case 1:
-        center = pts[0];
-        radius = 0.0f;
-        break;
-    case 2:
-        center.x = (pts[0].x + pts[1].x) / 2.0f;
-        center.y = (pts[0].y + pts[1].y) / 2.0f;
-        radius = (float)(norm(pts[0] - pts[1]) / 2.0);
-        break;
-    case 3:
-        findCircle3pts(pts, center, radius);
-        break;
-    default:
-        break;
-    }
-
-    radius += EPS;
+    // center is intersection of midperpendicular lines of the two edges v1, v2
+    // a1*x + b1*y = c1 where a1 = v1.x, b1 = v1.y
+    // a2*x + b2*y = c2 where a2 = v2.x, b2 = v2.y
+    Point2f midPoint1 = (pts[0] + pts[1]) / 2.0f;
+    float c1 = midPoint1.x * v1.x + midPoint1.y * v1.y;
+    Point2f midPoint2 = (pts[0] + pts[2]) / 2.0f;
+    float c2 = midPoint2.x * v2.x + midPoint2.y * v2.y;
+    float det = v1.x * v2.y - v1.y * v2.x;
+    float cx = (c1 * v2.y - c2 * v1.y) / det;
+    float cy = (v1.x * c2 - v2.x * c1) / det;
+    center.x = (float)cx;
+    center.y = (float)cy;
+    cx -= pts[0].x;
+    cy -= pts[0].y;
+    radius = (float)(std::sqrt(cx *cx + cy * cy)) + EPS;
 }
 
 template<typename PT>
@@ -145,7 +90,7 @@ static void findThirdPoint(const PT *pts, int i, int j, Point2f &center, float &
             ptsf[0] = (Point2f)pts[i];
             ptsf[1] = (Point2f)pts[j];
             ptsf[2] = (Point2f)pts[k];
-            findEnclosingCircle3pts_orLess_32f(ptsf, 3, center, radius);
+            findCircle3pts(ptsf, center, radius);
         }
     }
 }
@@ -205,13 +150,11 @@ static void findMinEnclosingCircle(const PT *pts, int count, Point2f &center, fl
 // see Welzl, Emo. Smallest enclosing disks (balls and ellipsoids). Springer Berlin Heidelberg, 1991.
 void cv::minEnclosingCircle( InputArray _points, Point2f& _center, float& _radius )
 {
-    CV_INSTRUMENT_REGION()
+    CV_INSTRUMENT_REGION();
 
     Mat points = _points.getMat();
     int count = points.checkVector(2);
     int depth = points.depth();
-    Point2f center;
-    float radius = 0.f;
     CV_Assert(count >= 0 && (depth == CV_32F || depth == CV_32S));
 
     _center.x = _center.y = 0.f;
@@ -224,59 +167,69 @@ void cv::minEnclosingCircle( InputArray _points, Point2f& _center, float& _radiu
     const Point* ptsi = points.ptr<Point>();
     const Point2f* ptsf = points.ptr<Point2f>();
 
-    // point count <= 3
-    if (count <= 3)
+    switch (count)
     {
-        Point2f ptsf3[3];
-        for (int i = 0; i < count; ++i)
+        case 1:
         {
-            ptsf3[i] = (is_float) ? ptsf[i] : Point2f((float)ptsi[i].x, (float)ptsi[i].y);
+            _center = (is_float) ? ptsf[0] : Point2f((float)ptsi[0].x, (float)ptsi[0].y);
+            _radius = EPS;
+            break;
         }
-        findEnclosingCircle3pts_orLess_32f(ptsf3, count, center, radius);
-        _center = center;
-        _radius = radius;
-        return;
-    }
-
-    if (is_float)
-    {
-        findMinEnclosingCircle<Point2f>(ptsf, count, center, radius);
-#if 0
-        for (size_t m = 0; m < count; ++m)
+        case 2:
         {
-            float d = (float)norm(ptsf[m] - center);
-            if (d > radius)
+            Point2f p1 = (is_float) ? ptsf[0] : Point2f((float)ptsi[0].x, (float)ptsi[0].y);
+            Point2f p2 = (is_float) ? ptsf[1] : Point2f((float)ptsi[1].x, (float)ptsi[1].y);
+            _center.x = (p1.x + p2.x) / 2.0f;
+            _center.y = (p1.y + p2.y) / 2.0f;
+            _radius = (float)(norm(p1 - p2) / 2.0) + EPS;
+            break;
+        }
+        default:
+        {
+            Point2f center;
+            float radius = 0.f;
+            if (is_float)
             {
-                printf("error!\n");
+                findMinEnclosingCircle<Point2f>(ptsf, count, center, radius);
+                #if 0
+                    for (size_t m = 0; m < count; ++m)
+                    {
+                        float d = (float)norm(ptsf[m] - center);
+                        if (d > radius)
+                        {
+                            printf("error!\n");
+                        }
+                    }
+                #endif
             }
-        }
-#endif
-    }
-    else
-    {
-        findMinEnclosingCircle<Point>(ptsi, count, center, radius);
-#if 0
-        for (size_t m = 0; m < count; ++m)
-        {
-            double dx = ptsi[m].x - center.x;
-            double dy = ptsi[m].y - center.y;
-            double d = std::sqrt(dx * dx + dy * dy);
-            if (d > radius)
+            else
             {
-                printf("error!\n");
+                findMinEnclosingCircle<Point>(ptsi, count, center, radius);
+                #if 0
+                    for (size_t m = 0; m < count; ++m)
+                    {
+                        double dx = ptsi[m].x - center.x;
+                        double dy = ptsi[m].y - center.y;
+                        double d = std::sqrt(dx * dx + dy * dy);
+                        if (d > radius)
+                        {
+                            printf("error!\n");
+                        }
+                    }
+                #endif
             }
+            _center = center;
+            _radius = radius;
+            break;
         }
-#endif
     }
-    _center = center;
-    _radius = radius;
 }
 
 
 // calculates length of a curve (e.g. contour perimeter)
 double cv::arcLength( InputArray _curve, bool is_closed )
 {
-    CV_INSTRUMENT_REGION()
+    CV_INSTRUMENT_REGION();
 
     Mat curve = _curve.getMat();
     int count = curve.checkVector(2);
@@ -311,7 +264,7 @@ double cv::arcLength( InputArray _curve, bool is_closed )
 // area of a whole sequence
 double cv::contourArea( InputArray _contour, bool oriented )
 {
-    CV_INSTRUMENT_REGION()
+    CV_INSTRUMENT_REGION();
 
     Mat contour = _contour.getMat();
     int npoints = contour.checkVector(2);
@@ -344,7 +297,7 @@ double cv::contourArea( InputArray _contour, bool oriented )
 
 cv::RotatedRect cv::fitEllipse( InputArray _points )
 {
-    CV_INSTRUMENT_REGION()
+    CV_INSTRUMENT_REGION();
 
     Mat points = _points.getMat();
     int i, n = points.checkVector(2);
@@ -365,7 +318,7 @@ cv::RotatedRect cv::fitEllipse( InputArray _points )
     const Point2f* ptsf = points.ptr<Point2f>();
 
     AutoBuffer<double> _Ad(n*5), _bd(n);
-    double *Ad = _Ad, *bd = _bd;
+    double *Ad = _Ad.data(), *bd = _bd.data();
 
     // first fit for parameters A - E
     Mat A( n, 5, CV_64F, Ad );
@@ -593,8 +546,8 @@ cv::RotatedRect cv::fitEllipseAMS( InputArray _points )
 
             x0 = p1/l3 + c.x;
             y0 = p2/l3 + c.y;
-            a = sqrt(2)*sqrt((u1 - 4.0*u2)/((l1 - l2)*l3));
-            b = sqrt(2)*sqrt(-1.0*((u1 - 4.0*u2)/((l1 + l2)*l3)));
+            a = std::sqrt(2.)*sqrt((u1 - 4.0*u2)/((l1 - l2)*l3));
+            b = std::sqrt(2.)*sqrt(-1.0*((u1 - 4.0*u2)/((l1 + l2)*l3)));
             if (pVec(1)  == 0) {
                 if (pVec(0)  < pVec(2) ) {
                     theta = 0;
@@ -746,8 +699,8 @@ cv::RotatedRect cv::fitEllipseDirect( InputArray _points )
 
         x0 = p1/l3 + c.x;
         y0 = p2/l3 + c.y;
-        a = sqrt(2)*sqrt((u1 - 4.0*u2)/((l1 - l2)*l3));
-        b = sqrt(2)*sqrt(-1.0*((u1 - 4.0*u2)/((l1 + l2)*l3)));
+        a = sqrt(2.)*sqrt((u1 - 4.0*u2)/((l1 - l2)*l3));
+        b = sqrt(2.)*sqrt(-1.0*((u1 - 4.0*u2)/((l1 + l2)*l3)));
         if (pVec(1)  == 0) {
             if (pVec(0)  < pVec(2) ) {
                 theta = 0;
@@ -998,7 +951,7 @@ static Rect maskBoundingRect( const Mat& img )
 
 cv::Rect cv::boundingRect(InputArray array)
 {
-    CV_INSTRUMENT_REGION()
+    CV_INSTRUMENT_REGION();
 
     Mat m = array.getMat();
     return m.depth() <= CV_8U ? maskBoundingRect(m) : pointSetBoundingRect(m);
@@ -1016,7 +969,7 @@ cvMinEnclosingCircle( const void* array, CvPoint2D32f * _center, float *_radius 
 
     cv::minEnclosingCircle(points, center, radius);
     if(_center)
-        *_center = center;
+        *_center = cvPoint2D32f(center);
     if(_radius)
         *_radius = radius;
     return 1;
@@ -1056,8 +1009,8 @@ icvMemCopy( double **buf1, double **buf2, double **buf3, int *b_max )
 /* area of a contour sector */
 static double icvContourSecArea( CvSeq * contour, CvSlice slice )
 {
-    CvPoint pt;                 /*  pointer to points   */
-    CvPoint pt_s, pt_e;         /*  first and last points  */
+    cv::Point pt;                 /*  pointer to points   */
+    cv::Point pt_s, pt_e;         /*  first and last points  */
     CvSeqReader reader;         /*  points reader of contour   */
 
     int p_max = 2, p_ind;
@@ -1091,10 +1044,10 @@ static double icvContourSecArea( CvSeq * contour, CvSlice slice )
 
     cvStartReadSeq( contour, &reader, 0 );
     cvSetSeqReaderPos( &reader, slice.start_index );
-    CV_READ_SEQ_ELEM( pt_s, reader );
+    { CvPoint pt_s_ = CV_STRUCT_INITIALIZER; CV_READ_SEQ_ELEM(pt_s_, reader); pt_s = pt_s_; }
     p_ind = 0;
     cvSetSeqReaderPos( &reader, slice.end_index );
-    CV_READ_SEQ_ELEM( pt_e, reader );
+    { CvPoint pt_e_ = CV_STRUCT_INITIALIZER; CV_READ_SEQ_ELEM(pt_e_, reader); pt_e = pt_e_; }
 
 /*    normal coefficients    */
     nx = pt_s.y - pt_e.y;
@@ -1103,7 +1056,7 @@ static double icvContourSecArea( CvSeq * contour, CvSlice slice )
 
     while( lpt-- > 0 )
     {
-        CV_READ_SEQ_ELEM( pt, reader );
+        { CvPoint pt_ = CV_STRUCT_INITIALIZER; CV_READ_SEQ_ELEM(pt_, reader); pt = pt_; }
 
         if( flag == 0 )
         {
@@ -1341,14 +1294,14 @@ cvFitEllipse2( const CvArr* array )
 {
     cv::AutoBuffer<double> abuf;
     cv::Mat points = cv::cvarrToMat(array, false, false, 0, &abuf);
-    return cv::fitEllipse(points);
+    return cvBox2D(cv::fitEllipse(points));
 }
 
 /* Calculates bounding rectagnle of a point set or retrieves already calculated */
 CV_IMPL  CvRect
 cvBoundingRect( CvArr* array, int update )
 {
-    CvRect  rect;
+    cv::Rect rect;
     CvContour contour_header;
     CvSeq* ptseq = 0;
     CvSeqBlock block;
@@ -1390,16 +1343,16 @@ cvBoundingRect( CvArr* array, int update )
 
     if( mat )
     {
-        rect = cv::maskBoundingRect(cv::cvarrToMat(mat));
+        rect = cvRect(cv::maskBoundingRect(cv::cvarrToMat(mat)));
     }
     else if( ptseq->total )
     {
         cv::AutoBuffer<double> abuf;
-        rect = cv::pointSetBoundingRect(cv::cvarrToMat(ptseq, false, false, 0, &abuf));
+        rect = cvRect(cv::pointSetBoundingRect(cv::cvarrToMat(ptseq, false, false, 0, &abuf)));
     }
     if( update )
-        ((CvContour*)ptseq)->rect = rect;
-    return rect;
+        ((CvContour*)ptseq)->rect = cvRect(rect);
+    return cvRect(rect);
 }
 
 /* End of file. */

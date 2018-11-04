@@ -102,7 +102,8 @@ void cv::viz::Viz3d::spin() { impl_->spin(); }
 void cv::viz::Viz3d::spinOnce(int time, bool force_redraw) { impl_->spinOnce(time, force_redraw); }
 void cv::viz::Viz3d::setOffScreenRendering() { impl_->setOffScreenRendering(); }
 void cv::viz::Viz3d::removeAllLights() { impl_->removeAllLights(); }
-void cv::viz::Viz3d::addLight(Vec3d position, Vec3d focalPoint, Color color, Color diffuseColor, Color ambientColor, Color specularColor)
+void cv::viz::Viz3d::addLight(const Vec3d &position, const Vec3d &focalPoint, const Color &color,
+                              const Color &diffuseColor, const Color &ambientColor, const Color &specularColor)
 {  impl_->addLight(position, focalPoint, color, diffuseColor, ambientColor, specularColor);  }
 bool cv::viz::Viz3d::wasStopped() const { return impl_->wasStopped(); }
 void cv::viz::Viz3d::close() { impl_->close(); }
@@ -127,7 +128,7 @@ cv::Affine3d cv::viz::Viz3d::getWidgetPose(const String &id) const { return impl
 void cv::viz::Viz3d::setCamera(const Camera &camera) { impl_->setCamera(camera); }
 cv::viz::Camera cv::viz::Viz3d::getCamera() const { return impl_->getCamera(); }
 void cv::viz::Viz3d::setViewerPose(const Affine3d &pose) { impl_->setViewerPose(pose); }
-cv::Affine3d cv::viz::Viz3d::getViewerPose() { return impl_->getViewerPose(); }
+cv::Affine3d cv::viz::Viz3d::getViewerPose() const { return impl_->getViewerPose(); }
 
 void cv::viz::Viz3d::resetCameraViewpoint(const String &id) { impl_->resetCameraViewpoint(id); }
 void cv::viz::Viz3d::resetCamera() { impl_->resetCamera(); }
